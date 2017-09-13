@@ -5,7 +5,6 @@
 #include "PubSub/Subscriber.h"
 
 #include <string>
-#include <cstddef>
 
 struct State
 {
