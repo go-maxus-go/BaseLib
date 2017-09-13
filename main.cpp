@@ -10,6 +10,24 @@ struct Object
     std::string b = "wow";
 };
 
+struct Controller : protected Obs::Obs<Object>
+{
+    Controller() : Obs::Obs<Object>(true) {}
+};
+
+struct Observer : Obs::Obs<Object>
+{
+};
+
+void obs_add()
+{
+    Controller ctrl;
+    Observer obs;
+    obs.add();
+    assert(obs.objects().size() == 1);
+    std::cout << obs.object()->a << " " << obs.object()->b;
+}
+
 int main(int argc, char *argv[])
 {
     /*MySub sub;
@@ -19,12 +37,7 @@ int main(int argc, char *argv[])
     PubSub::publish(MyRequest(99));
     PubSub::publish(777);*/
 
-    Object obj;
-    Obs::Chain<Object> chain(nullptr, &obj);
-    chain->a = 5;
-    chain->b = "yo";
-
-    const Object * pObj = chain;
+    obs_add();
 
     return 0;
 }

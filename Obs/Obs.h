@@ -1,6 +1,11 @@
 #pragma once
 
-#include <list>
+#include <set>
+#include <iterator>
+#include <algorithm>
+
+#include "PubSub/Subscriber.h"
+#include "PubSub/Publisher.h"
 
 namespace Obs {
 
@@ -26,23 +31,33 @@ private:
     Obs<OBJ> * m_parent;
 };
 
+template<typename OBJ> struct AddRequest {};
+template<typename OBJ> struct AddedNotification
+{
+    AddedNotification(OBJ * obj) : obj(obj) {}
+    OBJ * obj = nullptr;
+};
+
 template<typename OBJ>
-class Obs
+class Obs : PubSub::Subscriber<AddRequest<OBJ>, AddedNotification<OBJ>>
 {
 public:
-    Obs()
-    {
-        // register observer
-    }
+    Obs(bool ctrl = false) : m_ctrl(ctrl) {}
 public:
-    Chain<OBJ> add(OBJ * obj = nullptr)
+    Chain<OBJ> add()
     {
-        // add object
-        return std::move(Chain(obj));
+        m_waitAddNotification = true;
+        PubSub::publish(AddRequest<OBJ>());
+        m_waitAddNotification = false;
+        auto obj = m_addedObj;
+        m_addedObj = nullptr;
+        if (obj)
+            m_objects.insert(obj);
+        return std::move(Chain<OBJ>(this, obj));
     }
     Chain<OBJ> change(OBJ * obj = nullptr)
     {
-        return std::move(Chain(obj));
+        return std::move(Chain<OBJ>(this, obj));
     }
     void remove(OBJ * obj = nullptr)
     {
@@ -52,25 +67,46 @@ public:
     const OBJ * object() const
         { return *m_objects.begin();}
     std::list<const OBJ *> objects() const
-        { return m_objects;}
-
-    void observe(const OBJ * obj)
     {
-
+        std::list<const OBJ *> res;
+        std::copy(m_objects.cbegin(), m_objects.end(), std::back_inserter(res));
+        return std::move(res);
     }
+
+    void observe(const OBJ * obj) {}
     void observeAll() {}
-    void forget(const OBJ * obj)
-    {
-
-    }
+    void forget(const OBJ * obj) {}
     void forgetAll() {}
+protected:
+    void notify(const AddRequest<OBJ> & r) final
+        { if(m_ctrl) addRequested(nullptr); }
+    void notify(const AddedNotification<OBJ> & r) final
+    {
+        if (m_waitAddNotification)
+            m_addedObj = r.obj;
+        added(r.obj);
+    }
 protected:
     virtual void added  (const OBJ *) {}
     virtual void removed(const OBJ *) {}
     virtual void changed(const OBJ *) {}
     virtual void changed(const OBJ * from, const OBJ * to) {}
+protected:
+    virtual void addRequested(OBJ * obj)
+    {
+        if (obj == nullptr)
+            obj = new OBJ;
+        m_objects.insert(obj);
+        PubSub::publish(AddedNotification<OBJ>(obj));
+    }
+    virtual void changeRequested(OBJ *, OBJ * to) {}
+    virtual void removeRequested(OBJ *) {}
 private:
-    std::list<OBJ*> m_objects;
+    std::set<OBJ*> m_objects;
+    const bool m_ctrl = false;
+
+    bool m_waitAddNotification = false;
+    OBJ * m_addedObj = nullptr;
 };
 
 }
