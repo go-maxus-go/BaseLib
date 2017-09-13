@@ -1,7 +1,7 @@
-QT += core
+QT += core testlib
 QT -= gui
 
-CONFIG += c++11
+CONFIG += c++11 c++14 c++17
 
 TARGET = BaseLib
 CONFIG += console
@@ -9,7 +9,8 @@ CONFIG -= app_bundle
 
 TEMPLATE = app
 
-SOURCES += main.cpp
+SOURCES += main.cpp \
+    Tests/PubSub.cpp
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked deprecated (the exact warnings

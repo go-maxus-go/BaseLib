@@ -20,6 +20,14 @@ public:
 };
 
 template<typename MSG>
+class BasePublisher
+{
+public:
+    void publish(const MSG & msg)
+        { Dispatcher<MSG>::get().sendMessage(msg, this); }
+};
+
+template<typename MSG>
 class Dispatcher
 {
     Dispatcher() {}
@@ -37,7 +45,14 @@ public:
         { m_subs.push_back(sub); }
     void removeSubscriber(BaseSubscriber<MSG> * sub)
         { m_subs.erase(std::find(m_subs.begin(), m_subs.end(), sub)); }
-    void sendMessage(const MSG & msg)
+    void sendMessage(const MSG & msg, const BasePublisher<MSG> * pub)
+    {
+        assert(!m_subs.empty());
+        for (auto sub: m_subs)
+            if (pub != reinterpret_cast<const BasePublisher<MSG>*>(sub))
+                sub->notify(msg);
+    }
+    void broadcastMessage(const MSG & msg)
     {
         assert(!m_subs.empty());
         for (auto sub: m_subs)
