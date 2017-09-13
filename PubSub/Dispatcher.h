@@ -11,17 +11,35 @@ template<typename MSG>
 class BaseSubscriber
 {
 protected:
-    BaseSubscriber()
-        { Dispatcher<MSG>::get().registerSubscriber(this); }
-    ~BaseSubscriber()
-        { Dispatcher<MSG>::get().removeSubscriber(this); }
+    BaseSubscriber() { subscribe(); }
+    ~BaseSubscriber() { unsubscribe(); }
 public:
     virtual void notify(const MSG &) = 0;
+protected:
+    void subscribe()
+    {
+        if (m_subscribed)
+            return;
+        Dispatcher<MSG>::get().registerSubscriber(this);
+        m_subscribed = true;
+    }
+    void unsubscribe()
+    {
+        if (!m_subscribed)
+            return;
+        Dispatcher<MSG>::get().removeSubscriber(this);
+        m_subscribed = false;
+    }
+private:
+    bool m_subscribed = false;
 };
 
 template<typename MSG>
 class BasePublisher
 {
+protected:
+    BasePublisher() = default;
+    ~BasePublisher() = default;
 public:
     void publish(const MSG & msg)
         { Dispatcher<MSG>::get().sendMessage(msg, this); }
@@ -44,7 +62,11 @@ public:
     void registerSubscriber(BaseSubscriber<MSG> * sub)
         { m_subs.push_back(sub); }
     void removeSubscriber(BaseSubscriber<MSG> * sub)
-        { m_subs.erase(std::find(m_subs.begin(), m_subs.end(), sub)); }
+    {
+        auto it = std::find(m_subs.begin(), m_subs.end(), sub);
+        assert(it != m_subs.end());
+        m_subs.erase(it);
+    }
     void sendMessage(const MSG & msg, const BasePublisher<MSG> * pub)
     {
         assert(!m_subs.empty());

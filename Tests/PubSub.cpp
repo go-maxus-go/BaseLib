@@ -19,10 +19,6 @@ private:
     std::string data;
 };
 
-struct Publisher : PubSub::Publisher<int, std::string>
-{
-};
-
 struct Subscriber : PubSub::Subscriber<std::string, int>
 {
     void notify(const std::string & n) override { state << n; }
@@ -42,25 +38,25 @@ struct SubscriberStr : PubSub::Subscriber<std::string>
     State state;
 };
 
-using PubInt = PubSub::Publisher<int>;
-using PubStr = PubSub::Publisher<std::string>;
+std::string operator ""_s(const char * str, std::size_t length)
+    { return std::move(std::string(str, length)); }
 
 void PubSubTest::singleSubscription()
 {
-    Publisher  pub;
+    PubSub::Publisher<int, std::string> pub;
     Subscriber sub;
     State      s;
 
-    pub.PubInt::publish(42);
-    pub.PubInt::publish(69);
-    pub.PubStr::publish("Hello");
-    pub.PubInt::publish(0);
+    pub.publish(42);
+    pub.publish(69);
+    pub.publish("Hello"_s);
+    pub.publish(0);
 
     QCOMPARE(sub.state, s << 42 << 69 << "Hello" << 0);
 }
 void PubSubTest::variadicSubscription()
 {
-    /*Publisher  pub;
+    PubSub::Publisher<int, std::string> pub;
     Subscriber sub;
     State      stt;
 
@@ -69,27 +65,67 @@ void PubSubTest::variadicSubscription()
         SubscriberInt subInt;
         State         sttInt;
         pub.publish(77); stt << 77; sttInt << 77;
-        pub.publish("hi"); stt << "hi";
+        pub.publish("hi"_s); stt << "hi"_s;
         {
             SubscriberStr subStr;
             State         sttStr;
-            pub.publish("yo"); stt << "yo"; sttStr << "yo";
+            pub.publish("yo"_s); stt << "yo"_s; sttStr << "yo"_s;
             pub.publish(11); stt << 11; sttInt << 11;
             QCOMPARE(subStr.state, sttStr);
         }
         pub.publish(777); stt << 777; sttInt << 777;
-        pub.publish("qq"); stt << "qq";
+        pub.publish("qq"_s); stt << "qq"_s;
         QCOMPARE(subInt.state, sttInt);
     }
     pub.publish(69); stt << 69;
-    pub.publish("thx"); stt << "thx";
-    QCOMPARE(sub.state, stt);*/
+    pub.publish("thx"_s); stt << "thx"_s;
+    QCOMPARE(sub.state, stt);
 }
 void PubSubTest::unsubscription()
 {
+    PubSub::Publisher<int, std::string> pub;
+    Subscriber    sub;
+    SubscriberInt subInt;
+    SubscriberStr subStr;
+    State stt;
+    State sttInt;
+    State sttStr;
 
+    { auto v = 42; pub.publish(v); stt << v; sttInt << v; }
+    { auto v = "hi"_s; pub.publish(v); stt << v; sttStr << v; }
+    sub.unsubscribe<std::string>();
+    { auto v = 77; pub.publish(v); stt << v; sttInt << v; }
+    { auto v = "y0"_s; pub.publish(v); sttStr << v; }
+    sub.unsubscribe<int>();
+    { auto v = 69; pub.publish(v); sttInt << v; }
+    { auto v = "opa"_s; pub.publish(v); sttStr << v; }
+    sub.subscribeAll();
+    { auto v = 123; pub.publish(v); stt << v; sttInt << v; }
+    { auto v = "cpp"_s; pub.publish(v); stt << v; sttStr << v; }
+    subStr.unsubscribe<std::string>();
+    { auto v = "smth"_s; pub.publish(v); stt << v; }
+    subStr.subscribe<std::string>();
+    { auto v = "dada"_s; pub.publish(v); stt << v; sttStr << v; }
+    subInt.unsubscribeAll();
+    { auto v = 321; pub.publish(v); stt << v; }
+
+    QCOMPARE(sub.state, stt);
+    QCOMPARE(subInt.state, sttInt);
+    QCOMPARE(subStr.state, sttStr);
 }
 void PubSubTest::broadcasting()
 {
+    struct PubSubber : PubSub::Publisher<int>, PubSub::Subscriber<int>
+    {
+        State s;
+        void notify(const int & v) override { s << v; }
+    } pubSubber;
+    SubscriberInt subInt;
 
+    pubSubber.publish(1);
+    PubSub::Publisher<int>().publish(2);
+    PubSub::broadcast<int>(3);
+
+    QCOMPARE(pubSubber.s, State() << 2 << 3);
+    QCOMPARE(subInt.state, State() <<1 << 2 << 3);
 }

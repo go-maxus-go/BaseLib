@@ -4,21 +4,25 @@
 
 namespace PubSub {
 
-template<typename MSG, typename ... ARGS>
+template<typename MSG, typename... ARGS>
 class Publisher
-        : public Publisher<ARGS...>
-        , public __private__::BasePublisher<MSG>
+    : protected Publisher<ARGS...>
+    , protected __private__::BasePublisher<MSG>
 {
 public:
-    using __private__::BasePublisher<ARGS...>::publish;
+    template<typename T> void publish(const T & msg)
+        { __private__::BasePublisher<T>::publish(msg); }
 };
 
 template<typename MSG>
-class Publisher<MSG> : public __private__::BasePublisher<MSG>
+class Publisher<MSG> : protected __private__::BasePublisher<MSG>
 {
+public:
+    template<typename T> void publish(const T & msg)
+        { __private__::BasePublisher<T>::publish(msg); }
 };
 
 template<typename MSG> void broadcast(const MSG & msg)
-    { __private__::Dispatcher<MSG>::get().sendMessage(msg); }
+    { __private__::Dispatcher<MSG>::get().broadcastMessage(msg); }
 
 }
