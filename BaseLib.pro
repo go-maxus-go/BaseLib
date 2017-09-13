@@ -26,4 +26,5 @@ HEADERS += \
     PubSub/Publisher.h \
     PubSub/Subscriber.h \
     PubSub/Dispatcher.h \
-    Tests/PubSub.h
+    Tests/PubSub.h \
+    Obs/Obs.h

@@ -1,3 +1,6 @@
+#include <string>
+#include <iostream>
+
 #include "PubSub/Publisher.h"
 #include "PubSub/Subscriber.h"
 
