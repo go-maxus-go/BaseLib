@@ -44,18 +44,15 @@ template<typename OBJ> struct RemovedNotification
 };
 
 template<typename OBJ>
-class Chain
+class Chain : public OBJ
 {
 public:
-    Chain(const OBJ * obj) : m_origin(obj), m_copy(*obj) {}
-    ~Chain()
-        { PubSub::publish(ChangeRequest<OBJ>(m_origin, &m_copy)); }
+    Chain(const OBJ * obj) : OBJ(*obj), m_origin(obj) {}
+    ~Chain() { PubSub::publish(ChangeRequest<OBJ>(m_origin, this)); }
 
-    OBJ * operator->() { return &m_copy; }
-    operator OBJ * ()  { return &m_copy; }
+    OBJ * operator -> () { return this;}
 private:
     const OBJ * m_origin = nullptr;
-    OBJ m_copy;
 };
 
 template<typename OBJ>
@@ -77,13 +74,13 @@ public:
         m_addedObj = nullptr;
         if (obj)
             m_objects.insert(obj);
-        return std::move(Chain<OBJ>(obj));
+        return Chain<OBJ>(obj);
     }
     Chain<OBJ> change(const OBJ * obj = nullptr)
     {
         if (!obj)
             obj = object();
-        return std::move(Chain<OBJ>(obj));
+        return Chain<OBJ>(obj);
     }
     void remove(const OBJ * obj)
     {
@@ -105,7 +102,7 @@ public:
     void forget(const OBJ * obj) {}
     void forgetAll() {}
 protected:
-    void notify(const AddRequest<OBJ> & r) final
+    void notify(const AddRequest<OBJ> &) final
         { if(m_ctrl) addRequested(nullptr); }
     void notify(const AddedNotification<OBJ> & r) final
     {
@@ -125,7 +122,7 @@ protected:
     virtual void added  (const OBJ *) {}
     virtual void removed(const OBJ *) {}
     virtual void changed(const OBJ *) {}
-    virtual void changed(const OBJ * from, const OBJ * to) {}
+    virtual void changed(const OBJ * /*from*/, const OBJ * /*to*/) {}
 protected:
     virtual void addRequested(OBJ * obj)
     {

@@ -4,6 +4,7 @@
 #include "Obs/Obs.h"
 
 #include <string>
+#include <vector>
 
 struct State
 {
@@ -50,9 +51,9 @@ struct Observer : Obs::Obs<Object>
 {
 };
 
-void ObsTest::singleOwnerAddChangeRemove()
+void ObsTest::oneObjectOneObserverBasicOperations()
 {
-    Controller ctrl;
+    /*Controller ctrl;
     Observer obs;
 
     obs.add()->setName("name");
@@ -62,5 +63,22 @@ void ObsTest::singleOwnerAddChangeRemove()
     bool isDestroyed = false;
     const_cast<Object*>(obs.object())->destroyed = &isDestroyed;
     obs.remove(obs.object());
-    QCOMPARE(isDestroyed, true);
+    QCOMPARE(isDestroyed, true);*/
+}
+void ObsTest::manyObjectsOneObserver()
+{
+    Controller ctrl;
+    Observer obs;
+    std::vector<const Object *> objects;
+
+    Obs::Chain<Object> obj = obs.add();
+    obj = obj->setName("obj");
+    int i = 1 + 1;
+   // QCOMPARE(objects[0]->state(), State() << "obj0");
+}
+void ObsTest::oneObjectManyObservers()
+{
+}
+void ObsTest::maneObjectsManyObservers()
+{
 }

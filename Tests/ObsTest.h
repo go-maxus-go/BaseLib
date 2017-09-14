@@ -8,5 +8,8 @@ public:
     explicit ObsTest(QObject * p = 0) : QObject(p) {}
 
 private slots:
-    void singleOwnerAddChangeRemove();
+    void oneObjectOneObserverBasicOperations();
+    void manyObjectsOneObserver();
+    void oneObjectManyObservers();
+    void maneObjectsManyObservers();
 };
