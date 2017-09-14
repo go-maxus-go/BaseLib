@@ -21,34 +21,29 @@ struct Object
 {
     int number = 0;
     std::string name;
+    bool * destroyed = nullptr;
     Object * setNumber(int v)
     {
-        if (m_state)
-            *m_state << v;
+        m_state << v;
         number = v;
         return this;
     }
     Object * setName(const std::string & v)
     {
-        if (m_state)
-            *m_state << v;
+        m_state << v;
         name = v;
         return this;
     }
-    Object * setState(State * state)
-    {
-        m_state = state;
-        *m_state << "state setted";
-        return this;
-    }
-    ~Object() { if (m_state) *m_state << "deleted";}
+    const State & state() const { return m_state; }
+    ~Object() { if (destroyed) *destroyed = true; }
 private:
-    State * m_state = nullptr;
+    State m_state;
 };
 
-struct Controller : Obs::Obs<Object>
+using ObjectObs = Obs::Obs<Object>;
+struct Controller : ObjectObs
 {
-    Controller() : Obs::Obs<Object>(true) {}
+    Controller() : ObjectObs(true) {}
 };
 
 struct Observer : Obs::Obs<Object>
@@ -59,11 +54,13 @@ void ObsTest::singleOwnerAddChangeRemove()
 {
     Controller ctrl;
     Observer obs;
-    State state;
 
-    obs.add()->setState(&state);
-    obs.change()->setName("name")->setNumber(42);
+    obs.add()->setName("name");
+    obs.change()->setNumber(42);
+    QCOMPARE(obs.object()->state(), State() << "name" << 42);
+
+    bool isDestroyed = false;
+    const_cast<Object*>(obs.object())->destroyed = &isDestroyed;
     obs.remove(obs.object());
-
-    QCOMPARE(state, State() << "state setted" << "name" << 42 << "deleted");
+    QCOMPARE(isDestroyed, true);
 }
