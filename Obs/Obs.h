@@ -59,7 +59,7 @@ public:
     {
         return std::move(Chain<OBJ>(this, obj));
     }
-    void remove(OBJ * obj = nullptr)
+    void remove(const OBJ * obj)
     {
 
     }
