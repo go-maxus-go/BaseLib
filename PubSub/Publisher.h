@@ -22,7 +22,7 @@ public:
         { __private__::BasePublisher<T>::publish(msg); }
 };
 
-template<typename MSG> void broadcast(const MSG & msg)
-    { __private__::Dispatcher<MSG>::get().broadcastMessage(msg); }
+template<typename MSG> void publish(const MSG & msg)
+    { __private__::Dispatcher<MSG>::get().sendMessage(msg); }
 
 }

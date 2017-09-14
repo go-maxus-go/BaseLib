@@ -121,10 +121,12 @@ void PubSubTest::broadcasting()
     } pubSubber;
     SubscriberInt subInt;
 
+    pubSubber.unsubscribe<int>();
     pubSubber.publish(1);
+    pubSubber.subscribe<int>();
     PubSub::Publisher<int>().publish(2);
-    PubSub::broadcast<int>(3);
+    PubSub::publish<int>(3);
 
-    QCOMPARE(pubSubber.s, State() << 2 << 3);
-    QCOMPARE(subInt.state, State() <<1 << 2 << 3);
+    QCOMPARE(pubSubber.s , State() << 2 << 3);
+    QCOMPARE(subInt.state, State() << 1 << 2 << 3);
 }

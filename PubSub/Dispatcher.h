@@ -1,6 +1,6 @@
 #pragma once
 
-#include <list>
+#include <set>
 #include <cassert>
 
 namespace PubSub { namespace __private__ {
@@ -18,20 +18,14 @@ public:
 protected:
     void subscribe()
     {
-        if (m_subscribed)
-            return;
-        Dispatcher<MSG>::get().registerSubscriber(this);
-        m_subscribed = true;
+        if (!Dispatcher<MSG>::get().isRegistered(this))
+            Dispatcher<MSG>::get().registerSubscriber(this);
     }
     void unsubscribe()
     {
-        if (!m_subscribed)
-            return;
-        Dispatcher<MSG>::get().removeSubscriber(this);
-        m_subscribed = false;
+        if (Dispatcher<MSG>::get().isRegistered(this))
+            Dispatcher<MSG>::get().unregisterSubscriber(this);
     }
-private:
-    bool m_subscribed = false;
 };
 
 template<typename MSG>
@@ -42,7 +36,7 @@ protected:
     ~BasePublisher() = default;
 public:
     void publish(const MSG & msg)
-        { Dispatcher<MSG>::get().sendMessage(msg, this); }
+        { Dispatcher<MSG>::get().sendMessage(msg); }
 };
 
 template<typename MSG>
@@ -60,28 +54,23 @@ public:
         return instance;
     }
     void registerSubscriber(BaseSubscriber<MSG> * sub)
-        { m_subs.push_back(sub); }
-    void removeSubscriber(BaseSubscriber<MSG> * sub)
+        { m_subs.insert(sub); }
+    void unregisterSubscriber(BaseSubscriber<MSG> * sub)
     {
-        auto it = std::find(m_subs.begin(), m_subs.end(), sub);
+        auto it = m_subs.find(sub);
         assert(it != m_subs.end());
         m_subs.erase(it);
     }
-    void sendMessage(const MSG & msg, const BasePublisher<MSG> * pub)
-    {
-        assert(!m_subs.empty());
-        for (auto sub: m_subs)
-            if (pub != reinterpret_cast<const BasePublisher<MSG>*>(sub))
-                sub->notify(msg);
-    }
-    void broadcastMessage(const MSG & msg)
+    bool isRegistered(BaseSubscriber<MSG> * sub)
+        { return m_subs.find(sub) != m_subs.cend(); }
+    void sendMessage(const MSG & msg)
     {
         assert(!m_subs.empty());
         for (auto sub: m_subs)
             sub->notify(msg);
     }
 private:
-   std::list<BaseSubscriber<MSG>*> m_subs;
+   std::set<BaseSubscriber<MSG>*> m_subs;
 };
 
 } }
