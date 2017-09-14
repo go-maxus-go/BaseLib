@@ -16,16 +16,8 @@ protected:
 public:
     virtual void notify(const MSG &) = 0;
 protected:
-    void subscribe()
-    {
-        if (!Dispatcher<MSG>::get().isRegistered(this))
-            Dispatcher<MSG>::get().registerSubscriber(this);
-    }
-    void unsubscribe()
-    {
-        if (Dispatcher<MSG>::get().isRegistered(this))
-            Dispatcher<MSG>::get().unregisterSubscriber(this);
-    }
+    void subscribe  () { Dispatcher<MSG>::get().  registerSubscriber(this); }
+    void unsubscribe() { Dispatcher<MSG>::get().unregisterSubscriber(this); }
 };
 
 template<typename MSG>
@@ -54,13 +46,9 @@ public:
         return instance;
     }
     void registerSubscriber(BaseSubscriber<MSG> * sub)
-        { m_subs.insert(sub); }
+        { if (!isRegistered(sub)) m_subs.insert(sub); }
     void unregisterSubscriber(BaseSubscriber<MSG> * sub)
-    {
-        auto it = m_subs.find(sub);
-        assert(it != m_subs.end());
-        m_subs.erase(it);
-    }
+        { if (isRegistered(sub)) m_subs.erase(sub); }
     bool isRegistered(BaseSubscriber<MSG> * sub)
         { return m_subs.find(sub) != m_subs.cend(); }
     void sendMessage(const MSG & msg)
