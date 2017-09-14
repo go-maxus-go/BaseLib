@@ -10,7 +10,8 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 SOURCES += main.cpp \
-    Tests/PubSub.cpp
+    Tests/ObsTest.cpp \
+    Tests/PubSubTest.cpp
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked deprecated (the exact warnings
@@ -27,5 +28,6 @@ HEADERS += \
     PubSub/Publisher.h \
     PubSub/Subscriber.h \
     PubSub/Dispatcher.h \
-    Tests/PubSub.h \
-    Obs/Obs.h
+    Obs/Obs.h \
+    Tests/ObsTest.h \
+    Tests/PubSubTest.h

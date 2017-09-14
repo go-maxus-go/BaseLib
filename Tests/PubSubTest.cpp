@@ -1,4 +1,4 @@
-#include "PubSub.h"
+#include "PubSubTest.h"
 #include <QTest>
 
 #include "PubSub/Publisher.h"

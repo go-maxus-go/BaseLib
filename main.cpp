@@ -1,7 +1,7 @@
 #include <QtTest>
 #include <QCoreApplication>
 
-#include "Tests/PubSub.h"
+#include "Tests/PubSubTest.h"
 
 int main(int argc, char *argv[])
 {
