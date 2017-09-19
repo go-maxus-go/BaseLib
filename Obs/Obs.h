@@ -19,15 +19,16 @@ template<typename OBJ> struct AddedNotification
 
 template<typename OBJ> struct ChangeRequest
 {
-    ChangeRequest(const OBJ * from, OBJ * to) : from(from), to(to) {}
-    const OBJ * from = nullptr;
-    OBJ * to = nullptr;
+    ChangeRequest(const OBJ * obj, const OBJ & to) : obj(obj), to(to) {}
+    const OBJ * obj = nullptr;
+    const OBJ & to;
 };
 template<typename OBJ> struct ChangedNotification
 {
-    ChangedNotification(const OBJ * from, const OBJ * to)
-        : from(from), to(to)
+    ChangedNotification(const OBJ * obj, const OBJ * from, const OBJ * to)
+        : obj(obj), from(from), to(to)
     {}
+    const OBJ * obj  = nullptr;
     const OBJ * from = nullptr;
     const OBJ * to   = nullptr;
 };
@@ -44,114 +45,142 @@ template<typename OBJ> struct RemovedNotification
 };
 
 template<typename OBJ>
-class Chain : public OBJ
+class Controller : PubSub::Subscriber<AddRequest<OBJ>,
+    ChangeRequest<OBJ>, RemoveRequest<OBJ>>
 {
 public:
-    Chain(const OBJ * obj) : OBJ(*obj), m_origin(obj) {}
-    ~Chain() { PubSub::publish(ChangeRequest<OBJ>(m_origin, this)); }
-
-    OBJ * operator -> () { return this;}
-private:
-    const OBJ * m_origin = nullptr;
-};
-
-template<typename OBJ>
-class Obs : PubSub::Subscriber<
-    AddRequest   <OBJ>, AddedNotification  <OBJ>,
-    ChangeRequest<OBJ>, ChangedNotification<OBJ>,
-    RemoveRequest<OBJ>, RemovedNotification<OBJ>>
-{
-public:
-    Obs(bool ctrl = false) : m_ctrl(ctrl) {}
-    ~Obs() { assert(m_objects.empty()); }
-public:
-    Chain<OBJ> add()
-    {
-        m_waitAddNotification = true;
-        PubSub::publish(AddRequest<OBJ>());
-        m_waitAddNotification = false;
-        auto obj = m_addedObj;
-        m_addedObj = nullptr;
-        if (obj)
-            m_objects.insert(obj);
-        return Chain<OBJ>(obj);
-    }
-    Chain<OBJ> change(const OBJ * obj = nullptr)
-    {
-        if (!obj)
-            obj = object();
-        return Chain<OBJ>(obj);
-    }
-    void remove(const OBJ * obj)
-    {
-        m_objects.erase(m_objects.find(obj));
-        PubSub::publish(RemoveRequest<OBJ>(obj));
-    }
-
-    const OBJ * object() const
-        { return *m_objects.begin();}
-    std::list<const OBJ *> objects() const
-    {
-        std::list<const OBJ *> res;
-        std::copy(m_objects.cbegin(), m_objects.end(), std::back_inserter(res));
-        return std::move(res);
-    }
-
-    void observe(const OBJ * obj) {}
-    void observeAll() {}
-    void forget(const OBJ * obj) {}
-    void forgetAll() {}
+    virtual ~Controller()
+        { assert(m_objects.empty()); }
 protected:
-    void notify(const AddRequest<OBJ> &) final
-        { if(m_ctrl) addRequested(nullptr); }
-    void notify(const AddedNotification<OBJ> & r) final
-    {
-        if (m_waitAddNotification)
-            m_addedObj = r.obj;
-        added(r.obj);
-    }
-    void notify(const ChangeRequest<OBJ> & r) final
-        { if (m_ctrl) changeRequested(r.from, r.to); }
-    void notify(const ChangedNotification<OBJ> & r) final
-        { changed(r.from, r.to); changed(r.to); }
-    void notify(const RemoveRequest<OBJ> & r) final
-        { if (m_ctrl) removeRequested(r.obj, false); }
-    void notify(const RemovedNotification<OBJ> & r) final
-        { removed(r.obj); }
-protected:
-    virtual void added  (const OBJ *) {}
-    virtual void removed(const OBJ *) {}
-    virtual void changed(const OBJ *) {}
-    virtual void changed(const OBJ * /*from*/, const OBJ * /*to*/) {}
-protected:
-    virtual void addRequested(OBJ * obj)
+    virtual OBJ * addRequested(OBJ * obj = nullptr)
     {
         if (obj == nullptr)
             obj = new OBJ;
         m_objects.insert(obj);
         PubSub::publish(AddedNotification<OBJ>(obj));
+        return obj;
     }
-    virtual void changeRequested(const OBJ * from, OBJ * to)
+    virtual void changeRequested(OBJ * obj, const OBJ & to)
     {
-        auto f = const_cast<OBJ*>(from);
-        auto temp = *f;
-        *f = *to;
-        *to = temp;
-        PubSub::publish(ChangedNotification<OBJ>(to, from));
+        const OBJ from = *obj;
+        *obj = to;
+        PubSub::publish(ChangedNotification<OBJ>(obj, &from, &to));
     }
-    virtual void removeRequested(const OBJ * obj, bool isDeleted)
+    virtual void removeRequested(const OBJ * obj, bool del  = true)
     {
         m_objects.erase(obj);
-        if (!isDeleted)
+        if (del)
             delete obj;
         PubSub::publish(RemovedNotification<OBJ>(obj));
     }
+
+    const OBJ * object() const { return *m_objects.begin(); }
+    std::set<const OBJ*> objects() const { return m_objects; }
+private:
+    void notify(const AddRequest<OBJ> &) final
+        { addRequested(); }
+    void notify(const ChangeRequest<OBJ> & r) final
+        { changeRequested(const_cast<OBJ*>(r.obj), r.to); }
+    void notify(const RemoveRequest<OBJ> & r) final
+        { removeRequested(r.obj); }
 private:
     std::set<const OBJ*> m_objects;
-    const bool m_ctrl = false;
+};
 
-    bool m_waitAddNotification = false;
+template<typename OBJ>
+class View : PubSub::Subscriber<AddedNotification <OBJ>,
+    ChangedNotification<OBJ>, RemovedNotification<OBJ>>
+{
+public:
+    virtual ~View() { assert(m_objects.empty()); }
+public:
+    const OBJ * add()
+    {
+        m_waitAdd = true;
+        PubSub::publish(AddRequest<OBJ>());
+        m_waitAdd = false;
+        auto obj = m_addedObj;
+        m_addedObj = nullptr;
+        if (obj)
+            m_objects.insert(obj);
+        return obj;
+    }
+    void change(const OBJ * from, const OBJ & to)
+    {
+        assert(from && m_objects.find(from) != m_objects.end());
+        m_waitChange = true;
+        PubSub::publish(ChangeRequest<OBJ>(from, to));
+        m_waitChange = false;
+    }
+    void remove(const OBJ * obj)
+    {
+        m_objects.erase(obj);
+        m_waitRemove = true;
+        PubSub::publish(RemoveRequest<OBJ>(obj));
+        m_waitRemove = false;
+    }
+
+    const OBJ * object() const
+        { return *m_objects.begin();}
+    std::set<const OBJ *> objects() const
+    {
+        return m_objects;
+    }
+
+    void observe(const OBJ * obj)
+        { assert(obj); m_objects.insert(obj); }
+    void observeAll(bool value = false)
+        { m_observeAll = value; }
+    void forget(const OBJ * obj)
+        { assert(obj); m_objects.erase(obj); }
+    void forgetAll()
+        { m_objects.clear(); }
+protected:
+    virtual void added  (const OBJ *) {}
+    virtual void removed(const OBJ *) {}
+    virtual void changed(const OBJ *) {}
+    virtual void changed(const OBJ * /*obj*/,
+                         const OBJ * /*from*/,
+                         const OBJ * /*to*/) {}
+protected:
+    void notify(const AddedNotification<OBJ> & r) final
+    {
+        if (m_waitAdd)
+        {
+            m_addedObj = r.obj;
+            return;
+        }
+        if (m_observeAll)
+        {
+            m_objects.insert(r.obj);
+            added(r.obj);
+        }
+    }
+    void notify(const ChangedNotification<OBJ> & r) final
+    {
+        if (m_waitChange)
+            return;
+        if (m_objects.find(r.obj) != m_objects.end())
+        {
+            changed(r.obj, r.from, r.to);
+            changed(r.obj);
+        }
+    }
+    void notify(const RemovedNotification<OBJ> & r) final
+    {
+        if (m_objects.find(r.obj) != m_objects.end())
+        {
+            m_objects.erase(r.obj);
+            removed(r.obj);
+        }
+    }
+private:
+    std::set<const OBJ*> m_objects;
     const OBJ * m_addedObj = nullptr;
+    bool m_waitAdd    = false;
+    bool m_waitChange = false;
+    bool m_waitRemove = false;
+    bool m_observeAll = false;
 };
 
 }

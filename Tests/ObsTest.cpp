@@ -6,76 +6,60 @@
 #include <string>
 #include <vector>
 
-struct State
-{
-    State & operator <<(int val)
-        { data += std::to_string(val) + " "; return *this; }
-    State & operator <<(const std::string & val)
-        { data += val + " "; return *this; }
-    bool operator ==(const State & rhs) const
-        { return this == &rhs ? true : data == rhs.data; }
-private:
-    std::string data;
-};
-
 struct Object
 {
     int number = 0;
     std::string name;
     bool * destroyed = nullptr;
-    Object * setNumber(int v)
-    {
-        m_state << v;
-        number = v;
-        return this;
-    }
-    Object * setName(const std::string & v)
-    {
-        m_state << v;
-        name = v;
-        return this;
-    }
-    const State & state() const { return m_state; }
-    ~Object() { if (destroyed) *destroyed = true; }
-private:
-    State m_state;
-};
-
-using ObjectObs = Obs::Obs<Object>;
-struct Controller : ObjectObs
-{
-    Controller() : ObjectObs(true) {}
-};
-
-struct Observer : Obs::Obs<Object>
-{
+    ~Object()
+        { if (destroyed) *destroyed = true; }
 };
 
 void ObsTest::oneObjectOneObserverBasicOperations()
 {
-    /*Controller ctrl;
-    Observer obs;
-
-    obs.add()->setName("name");
-    obs.change()->setNumber(42);
-    QCOMPARE(obs.object()->state(), State() << "name" << 42);
-
+    Obs::Controller<Object> ctrl;
+    Obs::View<Object> view;
+    QCOMPARE(view.object(), nullptr);
+    QVERIFY(view.objects().empty());
+    // add
+    auto obj = view.add();
+    QCOMPARE(view.object(), obj);
+    QCOMPARE(view.objects().size(), 1U);
+    // change
+    auto copy = *obj;
+    copy.name = "name";
+    copy.number = 42;
+    view.change(obj, copy);
+    QCOMPARE(obj->name, copy.name);
+    QCOMPARE(obj->number, copy.number);
+    // remove
     bool isDestroyed = false;
-    const_cast<Object*>(obs.object())->destroyed = &isDestroyed;
-    obs.remove(obs.object());
-    QCOMPARE(isDestroyed, true);*/
+    const_cast<Object*>(obj)->destroyed = &isDestroyed;
+    view.remove(obj);
+    QCOMPARE(isDestroyed, true);
+    QCOMPARE(view.object(), nullptr);
+    QVERIFY(view.objects().empty());
 }
 void ObsTest::manyObjectsOneObserver()
 {
-    Controller ctrl;
-    Observer obs;
-    std::vector<const Object *> objects;
+    Obs::Controller<Object> ctrl;
+    Obs::View<Object> v1;
+    Obs::View<Object> v2;
 
-    Obs::Chain<Object> obj = obs.add();
-    obj = obj->setName("obj");
-    int i = 1 + 1;
-   // QCOMPARE(objects[0]->state(), State() << "obj0");
+    auto o1 = v1.add();
+    v2.observe(o1);
+    QCOMPARE(v1.object(), v2.object());
+
+    auto copy = *o1;
+    copy.name = "name";
+    copy.number = 42;
+    v2.change(o1, copy);
+    QCOMPARE(v1.object()->name, copy.name);
+    QCOMPARE(v1.object()->number, copy.number);
+
+    v2.remove(o1);
 }
+
 void ObsTest::oneObjectManyObservers()
 {
 }
